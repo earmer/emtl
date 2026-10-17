@@ -49,17 +49,24 @@ To set up `emtl` for local development:
 
    Now you can make your changes locally.
 
-4. When you're done making changes run all the checks and docs builder with one command::
+4. Set up the environment and install the dev tools (this needs `uv
+   <https://docs.astral.sh/uv/>`_)::
 
-    tox
+    uv sync
 
-5. Commit your changes and push your branch to GitHub::
+5. When you're done making changes, run all the checks and tests::
+
+    uv run ruff check
+    uv run black --check .
+    uv run pytest
+
+6. Commit your changes and push your branch to GitHub::
 
     git add .
     git commit -m "Your detailed description of your changes."
     git push origin name-of-your-bugfix-or-feature
 
-6. Submit a pull request through the GitHub website.
+7. Submit a pull request through the GitHub website.
 
 Pull Request Guidelines
 -----------------------
@@ -68,7 +75,7 @@ If you need some code review or feedback while you're developing the code just m
 
 For merging, you should:
 
-1. Include passing tests (run ``tox``).
+1. Include passing tests (run ``uv run pytest``).
 2. Update documentation when there's new API, functionality etc.
 3. Add a note to ``CHANGELOG.rst`` about the changes.
 4. Add yourself to ``AUTHORS.rst``.
@@ -78,8 +85,7 @@ Tips
 
 To run a subset of tests::
 
-    tox -e envname -- pytest -k test_myfeature
+    uv run pytest -k test_myfeature
 
-To run all the test environments in *parallel*::
-
-    tox -p auto
+The default test suite is hermetic. Live tests against the real 18.cn service
+are opt-in (``EMTL_LIVE=1``); see the Development section of the README.

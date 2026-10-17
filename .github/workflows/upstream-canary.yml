@@ -1,0 +1,64 @@
+name: upstream-canary
+
+# emtl is a reverse-engineered client for a private web app. The app can change
+# at any time and break the client without any commit here. This scheduled job
+# checks the upstream shape once a week and files an issue when it drifts.
+on:
+  schedule:
+    # Mondays at 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v7
+    - uses: astral-sh/setup-uv@v10
+    - name: Check the upstream 18.cn web app
+      id: check
+      continue-on-error: true
+      run: uv run --no-project --python 3.12 python ci/upstream_check.py
+    - name: Open or update an issue when the check fails
+      if: steps.check.outcome == 'failure'
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const title = 'Upstream canary: 18.cn web app may have changed';
+          const body = [
+            'The scheduled `upstream-canary` workflow failed.',
+            '',
+            `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            '',
+            'This usually means the 18.cn web app changed in a way the client',
+            'depends on (RSA public key, endpoints, captcha, or the validatekey flow).',
+            'Re-check `src/emtl/const.py`, `src/emtl/core.py` and `src/emtl/utils.py`.',
+          ].join('\n');
+          const existing = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            per_page: 100,
+          });
+          const match = existing.data.find((issue) => issue.title === title);
+          if (match) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: match.number,
+              body,
+            });
+          } else {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+            });
+          }
+    - name: Fail the job when the check failed
+      if: steps.check.outcome == 'failure'
+      run: exit 1

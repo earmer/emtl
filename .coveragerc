@@ -3,10 +3,7 @@ source = src
 
 [run]
 branch = true
-source =
-    src
-    tests
-parallel = true
+source = src
 
 [report]
 show_missing = true

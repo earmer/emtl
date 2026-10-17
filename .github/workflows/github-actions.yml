@@ -7,86 +7,75 @@ on:
     branches:
       - master
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: 'check'
+          - name: 'py311'
             python: '3.11'
-            toxpython: 'python3.11'
-            tox_env: 'check'
-            os: 'ubuntu-latest'
-          - name: 'docs'
-            python: '3.11'
-            toxpython: 'python3.11'
-            tox_env: 'docs'
-            os: 'ubuntu-latest'
-          - name: 'py311-cover (ubuntu)'
-            python: '3.11'
-            toxpython: 'python3.11'
-            python_arch: 'x64'
-            tox_env: 'py311-cover'
-            os: 'ubuntu-latest'
+          - name: 'py312'
+            python: '3.12'
+          - name: 'py313'
+            python: '3.13'
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: astral-sh/setup-uv@v10
       with:
-        python-version: ${{ matrix.python }}
-        architecture: ${{ matrix.python_arch }}
-    - name: install dependencies
-      run: |
-        python -mpip install --progress-bar=off -r ci/requirements.txt
-        virtualenv --version
-        pip --version
-        tox --version
-        pip list --format=freeze
-    - name: test
-      env:
-        TOXPYTHON: '${{ matrix.toxpython }}'
-        EM_USERNAME: ${{ secrets.EM_USERNAME }}
-        EM_PASSWORD: ${{ secrets.EM_PASSWORD }}
+        enable-cache: true
+    - name: Install the project
+      run: uv sync --python ${{ matrix.python }} --locked
+    - name: Run tests
       run: >
-        tox -e ${{ matrix.tox_env }} -v
-  finish:
-    needs: test
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
-        architecture: x64
-    - name: install dependencies
-      run: |
-        python -mpip install --progress-bar=off -r ci/requirements.txt
-        virtualenv --version
-        pip --version
-        tox --version
-        pip list --format=freeze
-    - name: test
-      env:
-        TOXPYTHON: 'python311'
-        PYTEST_ADDOPTS: '--cov-append'
-        EM_USERNAME: ${{ secrets.EM_USERNAME }}
-        EM_PASSWORD: ${{ secrets.EM_PASSWORD }}
-      run: >
-        PYTEST_ADDOPTS=--cov-append tox -e py311-cover -v
-    - uses: codecov/codecov-action@v4
+        uv run --no-sync pytest
+        --cov --cov-report=term-missing --cov-report=xml -vv
+    - name: Upload coverage to Codecov
+      if: matrix.python == '3.12'
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        verbose: true
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        EM_USERNAME: ${{ secrets.EM_USERNAME }}
-        EM_PASSWORD: ${{ secrets.EM_PASSWORD }}
+  lint:
+    name: 'lint'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: astral-sh/setup-uv@v10
+      with:
+        enable-cache: true
+    - name: Install the project
+      run: uv sync --locked
+    - name: ruff
+      run: uv run --no-sync ruff check --output-format=github
+    - name: black
+      run: uv run --no-sync black --check --diff .
+    - name: pre-commit
+      run: uv run --no-sync pre-commit run --all-files --show-diff-on-failure
+  docs:
+    name: 'docs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: astral-sh/setup-uv@v10
+      with:
+        enable-cache: true
+    - name: Install the project
+      run: uv sync --group docs --locked
+    - name: Build the documentation
+      run: uv run --no-sync sphinx-build -E -W -b html docs dist/docs

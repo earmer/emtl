@@ -75,29 +75,39 @@ https://emtl.readthedocs.io/
 Development
 ===========
 
-建议使用python3.11
+建议使用 Python 3.11+ 和 `uv <https://docs.astral.sh/uv/>`_。
 
-To run all the tests run::
+Set up the environment and run the hermetic checks with::
 
-    pip install -r ci/requirements.txt
-    tox
+    uv sync          # create .venv and install the project + dev tools
+    uv run pytest    # run the unit tests
+    uv run ruff check
+    uv run black --check .
 
-Note, to combine the coverage data from all the tox environments run:
+``uv sync --locked`` reproduces the exact versions in ``uv.lock``.
 
-.. list-table::
-    :widths: 10 90
-    :stub-columns: 1
+Tests are split in two:
 
-    - - Windows
-      - ::
+* **Unit tests** (the default) are hermetic. They never touch the network and
+  never need an account, so they run anywhere::
 
-            set PYTEST_ADDOPTS=--cov-append
-            tox
+      uv run pytest
 
-    - - Other
-      - ::
+* **Live tests** talk to the real 18.cn service. They are skipped unless you
+  opt in, and they need credentials::
 
-            PYTEST_ADDOPTS=--cov-append tox
+      EMTL_LIVE=1 EM_USERNAME=... EM_PASSWORD=... uv run pytest -m live -k "not trade"
+
+  Order tests additionally require ``EMTL_LIVE_TRADE=1`` because they place and
+  cancel **real** orders. Never run them against an account you are not willing
+  to trade with.
+
+Because the client reverse-engineers a private web app, it can break without
+any change here. A weekly `upstream-canary` workflow runs
+``ci/upstream_check.py`` to detect that the app's RSA key, endpoints, captcha or
+validatekey flow changed, and files an issue when it does::
+
+    uv run --no-project python ci/upstream_check.py
 
 
 Getting help

@@ -10,29 +10,19 @@ jobs:
     name: Publish documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
         with:
-          python-version: 3.11
-          architecture: x64
-      - name: install dependencies
-        run: |
-          python -mpip install --progress-bar=off -r ci/requirements.txt
-          python -mpip install Sphinx==7.2.6
-          virtualenv --version
-          pip --version
-          tox --version
-          pip list --format=freeze
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - name: Install the project
+        run: uv sync --group docs --locked
       - name: Build
-        env:
-          TOXPYTHON: 'python311'
-        run: >
-          tox -e docs -v
+        run: uv run --no-sync sphinx-build -E -b html docs dist/docs
       - name: Publish
-        uses: peaceiris/actions-gh-pages@v3
-        env:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist/docs

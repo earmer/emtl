@@ -11,5 +11,5 @@ To use the project:
     emtl.login("2020123456789", "123456")
     asset = emtl.query_asset_and_position()
     print(asset)
-    resp = create_order("000002", "B", "SA", 5.01, 100)
-    resp = cancel_order("20240520_130662")
+    resp = emtl.create_order("000002", "B", "SA", 5.01, 100)
+    resp = emtl.cancel_order("20240520_130662")

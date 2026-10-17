@@ -36,7 +36,9 @@ extlinks = {
 
 html_theme = "alabaster"
 html_theme_options = {
-    "githuburl": "https://github.com/riiy/emtl/",
+    "github_button": True,
+    "github_repo": "emtl",
+    "github_user": "riiy",
 }
 
 html_use_smartypants = True
