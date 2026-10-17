@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v7
-    - uses: astral-sh/setup-uv@v10
+    - uses: astral-sh/setup-uv@v10.3.0
     - name: Check the upstream 18.cn web app
       id: check
       continue-on-error: true
